@@ -1,6 +1,6 @@
 /* Service worker — offline app shell + reference bundle (ADR-0004 plan §3). */
-const CACHE = 'scan-katalog-v1'
-const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.webmanifest', './icon.svg', './reference.json', './reference.sample.json']
+const CACHE = 'scan-katalog-v2'
+const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.webmanifest', './icon.svg', './vendor/zxing.js', './reference.json', './reference.sample.json']
 
 self.addEventListener('install', (e) => {
   // addAll fails if any URL 404s; reference.json may not be generated yet → cache best-effort.

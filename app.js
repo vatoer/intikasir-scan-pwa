@@ -109,40 +109,62 @@ function exportCsv() {
   URL.revokeObjectURL(a.href)
 }
 
-// ── camera (BarcodeDetector) ─────────────────────────────────────────────────
-let stream = null
+// ── camera ───────────────────────────────────────────────────────────────────
+// Two decoders: native BarcodeDetector (Android Chrome) → fast; else ZXing
+// (vendored UMD) so the camera also works where BarcodeDetector is missing
+// (Safari/iPhone). Bluetooth HID scanner stays available regardless.
+let stream = null // native path: our own getUserMedia stream
 let detector = null
 let scanTimer = null
+let zxingReader = null // ZXing path: it owns the camera
 let lastSeen = { code: '', t: 0 }
+const hasNative = () => 'BarcodeDetector' in window
+const hasZxing = () => typeof window.ZXing?.BrowserMultiFormatReader === 'function'
+
+function onDetected(v) {
+  const now = Date.now()
+  if (v && (v !== lastSeen.code || now - lastSeen.t > 1500)) { lastSeen = { code: v, t: now }; addBarcode(v); navigator.vibrate?.(40) }
+}
+
 async function toggleCamera() {
+  if (stream || zxingReader) { stopCamera(); return }
   const video = $('video')
-  if (stream) { stopCamera(); return }
-  if (!('BarcodeDetector' in window)) { $('hint').textContent = 'Kamera tidak didukung browser ini — pakai scanner Bluetooth.'; return }
+  if (!hasNative() && !hasZxing()) { $('hint').textContent = 'Kamera tidak didukung — pakai scanner Bluetooth.'; return }
   try {
-    detector = detector || new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] })
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-    video.srcObject = stream
-    await video.play()
+    if (hasNative()) {
+      detector = detector || new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] })
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      video.srcObject = stream
+      await video.play()
+      scanTimer = setInterval(detect, 350)
+    } else {
+      // ZXing owns the camera; prefer the back/rear lens.
+      zxingReader = new window.ZXing.BrowserMultiFormatReader()
+      let deviceId
+      try {
+        const devs = await zxingReader.listVideoInputDevices()
+        deviceId = (devs.find((d) => /back|rear|environment|belakang/i.test(d.label)) || devs[devs.length - 1])?.deviceId
+      } catch { /* labels need permission; fall through to default */ }
+      await zxingReader.decodeFromVideoDevice(deviceId, video, (result) => { if (result) onDetected(result.getText()) })
+    }
     video.classList.add('on')
     $('camBtn').textContent = '⏹ Stop'
-    scanTimer = setInterval(detect, 350)
-  } catch (e) { $('hint').textContent = 'Gagal membuka kamera: ' + e.message }
+  } catch (e) { $('hint').textContent = 'Gagal membuka kamera: ' + e.message; stopCamera() }
 }
+
 async function detect() {
   const video = $('video')
   if (!detector || video.readyState < 2) return
   try {
     const codes = await detector.detect(video)
-    if (codes && codes[0]) {
-      const v = codes[0].rawValue
-      const now = Date.now()
-      if (v && (v !== lastSeen.code || now - lastSeen.t > 1500)) { lastSeen = { code: v, t: now }; addBarcode(v); navigator.vibrate?.(40) }
-    }
+    if (codes && codes[0]) onDetected(codes[0].rawValue)
   } catch { /* transient */ }
 }
+
 function stopCamera() {
   if (scanTimer) clearInterval(scanTimer), (scanTimer = null)
   if (stream) stream.getTracks().forEach((t) => t.stop()), (stream = null)
+  if (zxingReader) { try { zxingReader.reset() } catch { /* noop */ } zxingReader = null }
   $('video').classList.remove('on')
   $('camBtn').textContent = '📷 Kamera'
 }

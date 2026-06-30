@@ -26,3 +26,6 @@ button:disabled { opacity:.5; }
 .bar { position: fixed; bottom:0; left:0; right:0; background: var(--s1); border-top:1px solid var(--bd); padding:10px 14px; display:flex; gap:8px; align-items:center; }
 .bar .count { flex:1; font-size:13px; }
 .empty { color: var(--tm); text-align:center; padding:30px 0; }
+.unknown { position: sticky; top:56px; z-index:5; background: rgba(251,191,36,.16); border:1px solid var(--warn); border-radius:10px; padding:10px 12px; margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.unknown span { flex:1; font-size:13px; color: var(--tp); }
+.unknown button { white-space:nowrap; }

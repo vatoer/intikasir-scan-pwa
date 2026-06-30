@@ -39,6 +39,26 @@ function addBarcode(raw) {
   const r = ref.get(barcode)
   items.unshift({ barcode, name: r?.name || '', uom: r?.uom || 'PCS', price: '', stock: '', known: !!r })
   save(); render(); flash(barcode)
+  if (!r) pauseForUnknown(barcode) // A: barang tak dikenal → jeda kamera, fokus nama, "Simpan & lanjut"
+}
+
+// A: barang tak ada di kamus → hentikan kamera & minta isi nama dulu. Item sudah
+// masuk daftar (auto-tersimpan); "Simpan & lanjut scan" hanya melanjutkan scan.
+let wasCameraOn = false
+function pauseForUnknown(barcode) {
+  // defer: addBarcode bisa dipanggil dari dalam callback ZXing → jangan reset di situ
+  setTimeout(() => {
+    wasCameraOn = !!(stream || zxingReader)
+    if (wasCameraOn) stopCamera()
+    $('unknown-bar').hidden = false
+    const n = document.getElementById('nm-' + cssId(barcode))
+    if (n) { n.focus(); n.scrollIntoView({ block: 'center' }) }
+  }, 0)
+}
+function resumeScan() {
+  $('unknown-bar').hidden = true
+  if (wasCameraOn) { wasCameraOn = false; toggleCamera() } // nyalakan lagi kamera
+  else $('barcode').focus() // jalur scanner Bluetooth → siap scan berikutnya
 }
 
 function update(barcode, field, value) {
@@ -67,12 +87,14 @@ function render() {
         <button class="del" data-del="${esc(it.barcode)}">🗑</button>
       </div>
       <div class="grid">
-        <input class="name" type="text" placeholder="nama produk" data-f="name" value="${esc(it.name)}" />
+        <input id="nm-${cssId(it.barcode)}" class="name" type="text" placeholder="nama produk" data-f="name" value="${esc(it.name)}" />
         <input type="text" placeholder="satuan" data-f="uom" value="${esc(it.uom)}" />
         <input type="number" min="0" inputmode="numeric" placeholder="harga (opsional)" data-f="price" value="${esc(it.price)}" />
         <input type="number" min="0" inputmode="numeric" placeholder="stok (opsional)" data-f="stock" value="${esc(it.stock)}" />
       </div>`
     el.querySelectorAll('[data-f]').forEach((inp) => inp.addEventListener('change', (e) => update(it.barcode, e.target.dataset.f, e.target.value)))
+    // Enter di kolom nama saat sedang dijeda (barang tak dikenal) → simpan & lanjut scan
+    el.querySelector('.name').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('unknown-bar').hidden) { e.preventDefault(); resumeScan() } })
     el.querySelector('[data-del]').addEventListener('click', () => remove(it.barcode))
     list.appendChild(el)
   }
@@ -173,6 +195,7 @@ function stopCamera() {
 $('addBtn').addEventListener('click', () => { addBarcode($('barcode').value); $('barcode').value = ''; $('barcode').focus() })
 $('barcode').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addBarcode($('barcode').value); $('barcode').value = ''; } })
 $('camBtn').addEventListener('click', toggleCamera)
+$('resumeBtn').addEventListener('click', resumeScan)
 $('exportBtn').addEventListener('click', exportCsv)
 $('clearBtn').addEventListener('click', () => { if (confirm('Kosongkan semua item terkumpul?')) { items = []; save(); render() } })
 

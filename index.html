@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Scan Katalog — Onboarding</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Scan Katalog <span class="muted" id="refcount"></span></h1>
+    <button id="camBtn" title="Kamera">📷 Kamera</button>
+  </header>
+
+  <main>
+    <div class="scan-box">
+      <label>Barcode — scanner Bluetooth (ketik/scan, Enter) atau kamera</label>
+      <div class="row">
+        <input id="barcode" type="text" inputmode="numeric" autocomplete="off" autofocus placeholder="arahkan scanner ke sini…" />
+        <button id="addBtn">Tambah</button>
+      </div>
+      <video id="video" playsinline muted></video>
+      <p class="hint" id="hint">Harga &amp; stok opsional — boleh dilengkapi nanti di desktop.</p>
+    </div>
+
+    <div id="list"></div>
+    <div class="empty" id="empty">Belum ada item. Scan barang pertama di rak.</div>
+  </main>
+
+  <div class="bar">
+    <span class="count" id="count">0 item</span>
+    <button id="clearBtn">Kosongkan</button>
+    <button class="primary" id="exportBtn">Export CSV</button>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
